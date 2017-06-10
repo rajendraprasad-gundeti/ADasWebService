@@ -1,4 +1,4 @@
-package com.vinsol.ad.services;
+package com.vs.ad.services;
 
 import javax.ws.rs.core.Response;
 
@@ -18,6 +18,10 @@ public interface ADWebService {
 
     Response resetPassword(String userName, Object obj);
 
+    Response getAllUsers();
+    
+    Response getUserGroups(String userName,String recursive);
+
     // group
     Response createGroup(Object obj);
 
@@ -25,9 +29,15 @@ public interface ADWebService {
 
     Response deleteGroup(String groupName);
 
-    Response AddUserToGroup(String userName, String groupName);
+    Response addUserToGroup(String userName, String groupName);
 
-    Response RemoveUserFromGroup(String userName, String groupName);
+    Response removeUserFromGroup(String userName, String groupName);
+
+    Response getAllGroups();
+    
+    Response getGroupMembers(String groupDN);
+    
+    Response getGroupMembersByName(String groupName);
 
 
 
