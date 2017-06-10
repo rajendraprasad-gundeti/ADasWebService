@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:context="http://www.springframework.org/schema/context"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans 
+	http://www.springframework.org/schema/beans/spring-beans.xsd
+	http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context.xsd">
+
+	<bean name="service" class="com.vs.ad.service.impl.ActiveDirectoryServiceImpl" />
+	<bean name="conn" class="com.vs.ad.conn.impl.ADConnectionImpl" />
+	<bean name="applistener" class="com.vs.ad.AppListener" />
+	<bean name="searchUtils" class="com.vs.ad.conn.impl.ADSearchUtils" />
+	<bean name="endpoint" class="com.vs.ad.services.impl.ADWebServiceImpl" />
+	<context:component-scan base-package="com.vinsol.ad" />
+
+</beans>
