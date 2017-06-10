@@ -15,4 +15,6 @@ public interface ActiveDirectoryService {
     Group getGroup(String groupName);
     List<String> getGroupMembers(String groupDn, boolean nested);
     
+    boolean addUserToGroup(String userDN, String groupDN);
+    
 }

@@ -8,6 +8,7 @@ public class Credentials {
     private String serverName;
     private int port;
     private int sslPort;
+    private String searchBase;
 
     public String getUserName() {
         return userName;
@@ -55,5 +56,13 @@ public class Credentials {
 
     public void setSslPort(int sslPort) {
         this.sslPort = sslPort;
+    }
+
+    public String getSearchBase() {
+        return searchBase;
+    }
+
+    public void setSearchBase(String searchBase) {
+        this.searchBase = searchBase;
     }
 }

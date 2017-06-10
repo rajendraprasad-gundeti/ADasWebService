@@ -57,7 +57,7 @@ public class ADWebServiceImpl implements ADWebService {
     @Path("/createUser")
     @Produces(MediaType.APPLICATION_JSON)
     @Consumes(MediaType.APPLICATION_JSON)
-    public Response createUser(Object obj) {
+    public Response createUser(User obj) {
         return Response.status(Status.OK).build();
     }
 
@@ -141,6 +141,7 @@ public class ADWebServiceImpl implements ADWebService {
         return null;
     }
 
+    
     public Response addUserToGroup(String userName, String groupName) {
         // TODO Auto-generated method stub
         return null;
@@ -171,6 +172,24 @@ public class ADWebServiceImpl implements ADWebService {
     public Response getGroupMembersByName(String groupName) {
         Group group = service.getGroup(groupName);
         return getResponse(group.getMembers());
+    }
+
+    @Override
+    public Response enableUser(String userDn) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public Response disableUser(String userDn) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public Response getUserDisabledstatus(String userDN) {
+        // TODO Auto-generated method stub
+        return null;
     }
 
 }

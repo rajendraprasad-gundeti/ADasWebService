@@ -15,6 +15,7 @@ public class User extends ActiveDirObject {
     private Date createdAT;
     private Date lastLoggedAt;
     private List<String> groups;
+    private String password;
 
     public static String[] getUserAttributeNames() {
         String[] attributes = {"givenName", "sn", "cn", "displayname", "lastLogon", "mail",
@@ -32,6 +33,7 @@ public class User extends ActiveDirObject {
     public static String getUserFilter(String userName) {
         return "(&(objectCategory=person)(objectClass=User)(sAMAccountName=" + userName + "))";
     }
+
     public String getUsername() {
         return username;
     }
@@ -117,6 +119,14 @@ public class User extends ActiveDirObject {
             groups = new ArrayList<String>();
         }
         groups.add(group);
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
     }
 
     public static boolean setProperty(User user, String name, String value) {

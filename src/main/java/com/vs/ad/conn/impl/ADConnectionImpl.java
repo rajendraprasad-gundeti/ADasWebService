@@ -21,6 +21,8 @@ import com.vs.ad.conn.creds.impl.BasicADCredsReader;
 public class ADConnectionImpl implements ADConnection {
 
     private DirContext dirContext;
+    private String searchBase;
+    private String domainName;
     // this should be autowired
     private Credentials adCreds;
 
@@ -30,6 +32,14 @@ public class ADConnectionImpl implements ADConnection {
             System.out.println("ssl conecxt is null");
             dirContext = getSimpleADContext();
         }
+    }
+
+    public String getSearchBase() {
+        return searchBase;
+    }
+
+    public void setSearchBase(String searchBase) {
+        this.searchBase = searchBase;
     }
 
     public void closeConnection() {
@@ -124,6 +134,8 @@ public class ADConnectionImpl implements ADConnection {
 
     public DirContext getSSLADContext() {
         adCreds = new BasicADCredsReader().getCredentials();
+        searchBase = adCreds.getSearchBase();
+        domainName = adCreds.getDomainName();
         DirContext dirContext = null;
         Properties env = new Properties();
         env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
@@ -140,6 +152,7 @@ public class ADConnectionImpl implements ADConnection {
         env.put("com.sun.jndi.ldap.connect.timeout", "300000");
         try {
             dirContext = new InitialDirContext(env);
+            
             System.out.println("Connection to AD in ssl  is successful");
         } catch (NamingException e) {
             System.out.println("Connection to AD is failed");
@@ -153,4 +166,11 @@ public class ADConnectionImpl implements ADConnection {
         return dirContext;
     }
 
+    @Override
+    public String getDomainName() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    
 }

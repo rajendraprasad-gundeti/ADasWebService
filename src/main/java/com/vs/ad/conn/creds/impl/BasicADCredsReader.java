@@ -18,10 +18,11 @@ public class BasicADCredsReader implements ADCredsReader {
         creds.setServerName(props.getProperty("ad.serverip"));
         String port = props.getProperty("ad.port", "389");
         String sslport = props.getProperty("ad.sslport", "636");
+        
 
         creds.setPort(Integer.parseInt(port));
         creds.setSslPort(Integer.parseInt(sslport));
-
+        creds.setSearchBase(props.getProperty("ad.searchbase"));
         return creds;
     }
 

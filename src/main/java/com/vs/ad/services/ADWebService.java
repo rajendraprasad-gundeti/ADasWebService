@@ -2,9 +2,11 @@ package com.vs.ad.services;
 
 import javax.ws.rs.core.Response;
 
+import com.vs.ad.vo.User;
+
 public interface ADWebService {
     // user
-    Response createUser(Object obj);
+    Response createUser(User obj);
 
     Response getUser(String userName);
 
@@ -17,6 +19,11 @@ public interface ADWebService {
     Response setPassword(String userName, Object obj);
 
     Response resetPassword(String userName, Object obj);
+    
+    Response enableUser(String userDn);
+    
+    Response disableUser(String userDn);
+    Response getUserDisabledstatus(String userDN);
 
     Response getAllUsers();
     
@@ -29,9 +36,9 @@ public interface ADWebService {
 
     Response deleteGroup(String groupName);
 
-    Response addUserToGroup(String userName, String groupName);
+    Response addUserToGroup(String userDN, String groupDN);
 
-    Response removeUserFromGroup(String userName, String groupName);
+    Response removeUserFromGroup(String userDN, String groupDN);
 
     Response getAllGroups();
     
