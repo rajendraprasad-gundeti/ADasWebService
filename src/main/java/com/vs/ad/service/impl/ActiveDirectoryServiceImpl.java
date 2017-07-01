@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.fasterxml.jackson.databind.annotation.JsonAppend.Attr;
 import com.vs.ad.common.exec.ADErrorCode;
 import com.vs.ad.common.exec.ADException;
 import com.vs.ad.conn.ADConnection;
@@ -75,38 +74,41 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
         return searchUtils.searchGroupMembers(groupDn, nested);
     }
 
-    public boolean addUserToGroup(String userDN, String groupDN) {
-        boolean status = false;
+    public boolean addUserToGroup(String userDN, String groupDN) throws ADException {
+
         try {
             ModificationItem mods[] = new ModificationItem[1];
             mods[0] = new ModificationItem(DirContext.ADD_ATTRIBUTE,
                     new BasicAttribute("member", userDN));
             conn.getDirectoryContext().modifyAttributes(groupDN, mods);
-            System.out.println(userDN + " is added to a member of " + groupDN + " group");
-            status = true;
+            LOGGER.info(userDN + " is added to a member of " + groupDN + " group");
+            return true;
         } catch (NamingException e) {
-            e.printStackTrace();
-            System.err.println("Problem adding member: " + e);
-            return status;
+            LOGGER.error("Adding user '{}' to group '{}' failed with exception '{}'", userDN,
+                    groupDN, e.getMessage());
+            throw new ADException("Adding user '" + userDN + "' to group '" + groupDN + "' failed",
+                    ADErrorCode.OTHER, e);
+
         }
-        return false;
     }
 
-    public boolean removeUserFromGroup(String userDN, String groupDN) {
-        boolean status = false;
+    public boolean removeUserFromGroup(String userDN, String groupDN) throws ADException {
+
         try {
             ModificationItem mods[] = new ModificationItem[1];
             mods[0] = new ModificationItem(DirContext.REMOVE_ATTRIBUTE,
                     new BasicAttribute("member", userDN));
             conn.getDirectoryContext().modifyAttributes(groupDN, mods);
-            System.out.println(userDN + " is removed from " + groupDN + " group");
-            status = true;
+            LOGGER.info(userDN + " is removed from " + groupDN + " group");
+            return true;
         } catch (NamingException e) {
-            e.printStackTrace();
-            System.err.println("Problem adding member: " + e);
-            return status;
+            LOGGER.error("Removing user '{}' from group '{}' failed with exception '{}'", userDN,
+                    groupDN, e.getMessage());
+            throw new ADException(
+                    "Removing user '" + userDN + "' from group '" + groupDN + "' failed",
+                    ADErrorCode.OTHER, e);
         }
-        return false;
+
     }
 
 
@@ -134,7 +136,7 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
         byte[] UnicodePassword = EncodePassword(randomPwd);// encode the user password
         Attribute pass = new BasicAttribute("unicodePwd", UnicodePassword);
         Attribute uacAttr = new BasicAttribute(uac, "512");
-        //Attribute pwdLastSet = new BasicAttribute("pwdLastSet","-1");
+        // Attribute pwdLastSet = new BasicAttribute("pwdLastSet","-1");
         // Add these to the container
         container.put(objClasses);
         container.put(sAMAccountName);
@@ -147,7 +149,7 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
         container.put(email);
         container.put(pass);
         container.put(uacAttr);
-        //container.put("pwdLastSet", pwdLastSet);
+        // container.put("pwdLastSet", pwdLastSet);
         try {
             DirContext context = conn.getDirectoryContext()
                     .createSubcontext(user.getDistinguishedName(), container);
@@ -168,12 +170,29 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
 
     public boolean deleteUser(String userDN) throws ADException {
         try {
-            conn.getDirectoryContext().destroySubcontext(userDN);
-            LOGGER.info("user '{}' successfully deleted", userDN);
+            return delete(userDN);
+        } catch (ADException e) {
+            throw new ADException("cannot delete user", ADErrorCode.EU0005, e);
+        }
+    }
+
+    public boolean deleteGroup(String groupDN) throws ADException {
+        try {
+            return delete(groupDN);
+        } catch (ADException e) {
+            throw new ADException("cannot delete group", ADErrorCode.EU0005, e);
+        }
+    }
+
+
+    private boolean delete(String groupDN) throws ADException {
+        try {
+            conn.getDirectoryContext().destroySubcontext(groupDN);
+            LOGGER.info(" '{}' successfully deleted", groupDN);
             return true;
         } catch (NamingException e) {
-            LOGGER.error("Error,cannot delete the user");
-            throw new ADException("", ADErrorCode.EU0005, e);
+            LOGGER.error("Error,cannot delete ");
+            throw new ADException("cannot delete", ADErrorCode.EU0005, e);
         }
     }
 

@@ -325,13 +325,18 @@ public class ADWebServiceImpl implements ADWebService {
 
     }
 
+    @POST
+    @Path("/groups")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+
     public Response createGroup(Object obj) {
-        // TODO Auto-generated method stub
-        return null;
+        return Response.status(Status.OK).entity("not implemented yet").build();
     }
 
     @GET
     @Path("/groups/{groupName}")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response getGroup(@PathParam("groupName") final String groupName) {
         Group group;
         try {
@@ -343,25 +348,82 @@ public class ADWebServiceImpl implements ADWebService {
         }
     }
 
-    public Response deleteGroup(String groupName) {
-        // TODO Auto-generated method stub
-        return null;
+    @DELETE
+    @Path("/groups/{groupName}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response deleteGroup(@PathParam("groupName") final String groupName) {
+        try {
+            boolean status = service.deleteGroup(groupName);
+            if (status) {
+                LOGGER.info("group deletion is successful");
+                return getResponse("group deletion is successful  " + groupName);
+            } else {
+                // this will never happen
+                return Response.status(Status.INTERNAL_SERVER_ERROR).build();
+            }
+
+        } catch (ADException ade) {
+            return getADExceptionResponse(ade);
+        } catch (Exception e) {
+            return getGenericExceptionResponse(e);
+        }
     }
 
+    @POST
+    @Path("/users/{userName}/addtogroup")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response addUserToGroup(@PathParam("userName") final String userName, String groupName) {
+        LOGGER.info("Received request to add user '{}' to group '{}'", userName, groupName);
+        try {
+            boolean status = service.addUserToGroup(userName, groupName);
+            if (status) {
+                LOGGER.info("user '{}' is successfully added to group '{}'", userName, groupName);
+                return getResponse("User '" + userName + "' is successfully added to group '"
+                        + groupName + "'");
+            } else {
 
-    public Response addUserToGroup(String userName, String groupName) {
-        // TODO Auto-generated method stub
-        return null;
+                return getResponse(
+                        "Failed to add user '" + userName + "' to group '" + groupName + "'");
+            }
+
+        } catch (ADException ade) {
+            return getADExceptionResponse(ade);
+        } catch (Exception e) {
+            return getGenericExceptionResponse(e);
+        }
     }
 
-    public Response removeUserFromGroup(String userName, String groupName) {
-        // TODO Auto-generated method stub
-        return null;
+    @POST
+    @Path("/users/{userName}/removefromgroup")
+    @Produces(MediaType.APPLICATION_JSON)
+    @Consumes(MediaType.APPLICATION_JSON)
+    public Response removeUserFromGroup(@PathParam("userName") final String userName,
+            String groupName) {
+        LOGGER.info("Received request to remove user '{}' from group '{}'", userName, groupName);
+        try {
+            boolean status = service.removeUserFromGroup(userName, groupName);
+            if (status) {
+                LOGGER.info("user '{}' is successfully removed to group '{}'", userName, groupName);
+                return getResponse("User '" + userName + "' is successfully removed to group '"
+                        + groupName + "'");
+            } else {
+
+                return getResponse(
+                        "Failed to remove user '" + userName + "' to group '" + groupName + "'");
+            }
+
+        } catch (ADException ade) {
+            return getADExceptionResponse(ade);
+        } catch (Exception e) {
+            return getGenericExceptionResponse(e);
+        }
     }
 
 
     @GET
     @Path("/groups")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response getAllGroups() {
         List<Group> groups;
         try {
@@ -375,6 +437,7 @@ public class ADWebServiceImpl implements ADWebService {
 
     @GET
     @Path("/groups/{groupDN}/groupmembers")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response getGroupMembers(@PathParam("groupDN") final String groupDN) {
         List<String> members;
         try {
@@ -388,6 +451,7 @@ public class ADWebServiceImpl implements ADWebService {
 
     @GET
     @Path("/groups/{groupName}/groupmembersbyname")
+    @Produces(MediaType.APPLICATION_JSON)
     public Response getGroupMembersByName(String groupName) {
         Group group;
         try {

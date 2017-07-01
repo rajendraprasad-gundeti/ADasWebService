@@ -135,7 +135,7 @@ public class ADConnectionImpl implements ADConnection {
     public DirContext getSSLADContext() {
         adCreds = new BasicADCredsReader().getCredentials();
         searchBase = adCreds.getSearchBase();
-        domainName = adCreds.getDomainName();
+        setDomainName(adCreds.getDomainName());
         DirContext dirContext = null;
         Properties env = new Properties();
         env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
@@ -166,9 +166,13 @@ public class ADConnectionImpl implements ADConnection {
         return dirContext;
     }
 
-    @Override
     public String getDomainName() {
-        return adCreds.getDomainName();
+        domainName = adCreds.getDomainName();
+        return domainName;
+    }
+
+    public void setDomainName(String domainName) {
+        this.domainName = domainName;
     }
 
     

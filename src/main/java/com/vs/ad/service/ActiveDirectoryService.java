@@ -40,5 +40,10 @@ public interface ActiveDirectoryService {
 
     public long getUserUACStatus(String userDn) throws ADException;
 
+    boolean removeUserFromGroup(String userDN, String groupDN) throws ADException;
+    
+    boolean deleteGroup(String groupName) throws ADException;
+
+
 
 }
