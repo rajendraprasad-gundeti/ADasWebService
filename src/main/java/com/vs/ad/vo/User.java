@@ -5,7 +5,17 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.vs.ad.SecureRandomString;
+
 public class User extends ActiveDirObject {
+    private static Logger LOGGER = LoggerFactory.getLogger(User.class);
+    private static String[] attributes = {"objectClass", "givenName", "sn", "cn", "displayname",
+            "lastLogon", "mail", "accountExpires", "whenCreated", "userPrincipalName", "memberOf",
+            "sAMAccountName", "distinguishedName", "userAccountControl", "description", "name","pwdLastSet"};
+
     private String username;
     private String firstName;
     private String lastName;
@@ -14,15 +24,16 @@ public class User extends ActiveDirObject {
     private String isAdmin;
     private Date createdAT;
     private Date lastLoggedAt;
+    private String pwdLastSet;
     private List<String> groups;
-    private String password;
+    private long userAccountControl;
+
+
 
     public static String[] getUserAttributeNames() {
-        String[] attributes = {"givenName", "sn", "cn", "displayname", "lastLogon", "mail",
-                "accountExpires", "whenCreated", "userPrincipalName", "memberOf", "unicodePwd",
-                "sAMAccountName", "distinguishedName"};
         return attributes;
     }
+
 
     // https://social.technet.microsoft.com/wiki/contents/articles/5392.active-directory-ldap-syntax-filters.aspx
     public static String getFilter() {
@@ -121,13 +132,34 @@ public class User extends ActiveDirObject {
         groups.add(group);
     }
 
-    public String getPassword() {
-        return password;
+    private void setUac(String value) {
+        long uac = -1;
+        try {
+            uac = Long.parseLong(value);
+        } catch (NumberFormatException e) {
+            LOGGER.warn("Exception while converting uac value '{}', exception '{}'", value,
+                    e.getMessage(), e);
+        }
+        setUserAccountControl(uac);
     }
 
-    public void setPassword(String password) {
-        this.password = password;
+    public long getUserAccountControl() {
+        return userAccountControl;
     }
+
+    public void setUserAccountControl(long uac) {
+        this.userAccountControl = uac;
+    }
+
+    public String getPwdLastSet() {
+        return pwdLastSet;
+    }
+
+
+    public void setPwdLastSet(String pwdLastSet) {
+        this.pwdLastSet = pwdLastSet;
+    }
+
 
     public static boolean setProperty(User user, String name, String value) {
         switch (name.toLowerCase()) {
@@ -155,6 +187,21 @@ public class User extends ActiveDirObject {
             case "userprincipalname":
                 user.setUserPrincipalName(value);
                 break;
+            case "objectclass":
+                user.setObjectClasses(value);
+                break;
+            case "useraccountcontrol":
+                user.setUac(value);
+                break;
+            case "name":
+                user.setName(value);
+                break;
+            case "description":
+                user.setDescription(value);
+                break;
+            case "pwdlastset":
+                user.setPwdLastSet(value);
+                break;
 
             // case "lastLogon":
             // try {
@@ -167,12 +214,15 @@ public class User extends ActiveDirObject {
 
 
             default:
-                System.out.println("Missed key  " + name + " value  " + value);
+                LOGGER.trace("Missed key  " + name + " value  " + value);
                 break;
         }
         return false;
     }
 
+    public static String generateRandomPassword() {
+        return SecureRandomString.get(14);
+    }
 
 
 }

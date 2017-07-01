@@ -1,4 +1,4 @@
-package com.vs.ad;
+package com.vs.ad.integration;
 
 import java.util.List;
 
@@ -20,7 +20,7 @@ public class ADSearchUtilsTest {
     public static void main(String[] args) {
 
 
-        Object obj = util.searchGroupMembers(base, "CN=Enterprise Admins,CN=Users,DC=novelirs,DC=com", true);
+        Object obj = util.searchGroupMembers( "CN=Users,DC=novelirs,DC=com", true);
         //List<Group> groups = util.searchGroups(base);
         System.out.println(Utils.getJson(obj));
 
@@ -31,7 +31,7 @@ public class ADSearchUtilsTest {
 
     private static void getGroups() {
         List<String> groups =
-                util.searchUserGroups(base, "CN=Administrator,CN=Users,DC=novelirs,DC=com");
+                util.searchUserGroups( "CN=Administrator,CN=Users,DC=novelirs,DC=com");
         System.out.println(groups);
     }
 

@@ -16,18 +16,19 @@ public interface ADWebService {
 
     Response unlockUser(String userName);
 
-    Response setPassword(String userName, Object obj);
+    Response setPassword(String userName, String password);
 
-    Response resetPassword(String userName, Object obj);
-    
+    Response resetPassword(String userName, String password);
+
     Response enableUser(String userDn);
-    
+
     Response disableUser(String userDn);
+
     Response getUserDisabledstatus(String userDN);
 
     Response getAllUsers();
-    
-    Response getUserGroups(String userName,String recursive);
+
+    Response getUserGroups(String userName, String recursive);
 
     // group
     Response createGroup(Object obj);
@@ -41,9 +42,9 @@ public interface ADWebService {
     Response removeUserFromGroup(String userDN, String groupDN);
 
     Response getAllGroups();
-    
+
     Response getGroupMembers(String groupDN);
-    
+
     Response getGroupMembersByName(String groupName);
 
 

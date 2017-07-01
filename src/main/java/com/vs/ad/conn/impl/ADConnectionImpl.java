@@ -168,8 +168,7 @@ public class ADConnectionImpl implements ADConnection {
 
     @Override
     public String getDomainName() {
-        // TODO Auto-generated method stub
-        return null;
+        return adCreds.getDomainName();
     }
 
     

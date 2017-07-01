@@ -1,4 +1,4 @@
-package com.vs.ad;
+package com.vs.ad.integration;
 
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.support.ClassPathXmlApplicationContext;

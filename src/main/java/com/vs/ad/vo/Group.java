@@ -3,14 +3,27 @@ package com.vs.ad.vo;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class Group extends ActiveDirObject {
 
+    private static Logger LOGGER = LoggerFactory.getLogger(Group.class);
     private String groupName;
     private List<String> members;
     private List<String> groups;
 
+    private static String[] attributes = {"objectClass", "givenName", "sn", "cn", "displayname",
+            "whenCreated", "userPrincipalName", "memberOf", "sAMAccountName", "distinguishedName",
+            "description", "name","members"};
+
     public static String getFilter() {
         return "(objectCategory=group)";
+    }
+
+    public static String[] getGroupAttributes() {
+
+        return attributes;
     }
 
     public static String getGroupFilter(String groupName) {
@@ -60,11 +73,11 @@ public class Group extends ActiveDirObject {
             case "memberof":
                 group.addGroup(value);
                 break;
-            
+
             case "cn":
                 group.setGroupName(value);
                 break;
-            
+
             case "displayname":
                 group.setDisplayname(value);
                 break;
@@ -77,10 +90,17 @@ public class Group extends ActiveDirObject {
             case "member":
                 group.addMember(value);
                 break;
-
-
+            case "objectclass":
+                group.setObjectClasses(value);
+                break;
+            case "name":
+                group.setName(value);
+                break;
+            case "description":
+                group.setDescription(value);
+                break;
             default:
-                System.out.println("Missed key  " + name + " value  " + value);
+                LOGGER.trace("Missed key  " + name + " value  " + value);
                 break;
         }
         return true;

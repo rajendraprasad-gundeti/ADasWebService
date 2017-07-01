@@ -11,9 +11,14 @@ import javax.naming.directory.BasicAttributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.annotation.JsonAppend.Attr;
+import com.vs.ad.common.exec.ADErrorCode;
+import com.vs.ad.common.exec.ADException;
 import com.vs.ad.conn.ADConnection;
 import com.vs.ad.conn.impl.ADSearchUtils;
 import com.vs.ad.service.ActiveDirectoryService;
@@ -22,9 +27,9 @@ import com.vs.ad.vo.User;
 
 @Service
 public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
+    private static Logger LOGGER = LoggerFactory.getLogger(ActiveDirectoryServiceImpl.class);
 
-    // https://msdn.microsoft.com/en-us/library/aa772300(v=vs.85).aspx
-    private static final int ADS_UF_ACCOUNTDISABLE = 0x02;
+    private static String uac = "userAccountControl";
 
     @Autowired
     ADConnection conn;
@@ -34,38 +39,40 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
     @Autowired
     ADSearchUtils searchUtils;
 
-    public List<User> getAllUsers() {
-        return searchUtils.searchUsers(conn.getSearchBase());
+    public List<User> getAllUsers() throws ADException {
+        LOGGER.info("Searching for all users");
+        return searchUtils.searchUsers();
     }
 
 
-    public User getUser(String userName) {
-        User user = searchUtils.searchUser(conn.getSearchBase(), userName);
+    public User getUser(String userName) throws ADException {
+        LOGGER.info("searching for user '{}'", userName);
+        User user = searchUtils.searchUser(userName);
         return user;
     }
 
 
     @Override
     public List<String> getNestedUserGroups(String dn) {
-        return searchUtils.searchUserGroups(conn.getSearchBase(), dn);
+        return searchUtils.searchUserGroups(dn);
     }
 
 
     @Override
     public List<Group> getAllGroups() {
-        return searchUtils.searchGroups(conn.getSearchBase());
+        return searchUtils.searchGroups();
     }
 
 
     @Override
     public Group getGroup(String groupName) {
-        return searchUtils.searchGroup(conn.getSearchBase(), groupName);
+        return searchUtils.searchGroup(groupName);
     }
 
 
     @Override
     public List<String> getGroupMembers(String groupDn, boolean nested) {
-        return searchUtils.searchGroupMembers(conn.getSearchBase(), groupDn, nested);
+        return searchUtils.searchGroupMembers(groupDn, nested);
     }
 
     public boolean addUserToGroup(String userDN, String groupDN) {
@@ -103,7 +110,7 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
     }
 
 
-    public boolean createUser(User user) {
+    public boolean createUser(User user, String randomPwd) throws ADException {
         Attributes container = new BasicAttributes();
         // Create the objectclass to add
         Attribute objClasses = new BasicAttribute("objectClass");
@@ -124,8 +131,10 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
         Attribute displayname =
                 new BasicAttribute("displayname", user.getFirstName() + " " + user.getLastName());
         Attribute email = new BasicAttribute("mail", user.getEmailID());
-        byte[] UnicodePassword = EncodePassword(user.getPassword());// encode the user password
+        byte[] UnicodePassword = EncodePassword(randomPwd);// encode the user password
         Attribute pass = new BasicAttribute("unicodePwd", UnicodePassword);
+        Attribute uacAttr = new BasicAttribute(uac, "512");
+        //Attribute pwdLastSet = new BasicAttribute("pwdLastSet","-1");
         // Add these to the container
         container.put(objClasses);
         container.put(sAMAccountName);
@@ -137,94 +146,165 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
         container.put(displayname);
         container.put(email);
         container.put(pass);
+        container.put(uacAttr);
+        //container.put("pwdLastSet", pwdLastSet);
         try {
             DirContext context = conn.getDirectoryContext()
                     .createSubcontext(user.getDistinguishedName(), container);
             if (context != null) {
-                System.out.println("successfully add user to active directory");
+                LOGGER.info("successfully add user to active directory");
                 return true;
             } else {
-                System.out.println("failed to add user to ad");
-                return false;
+                LOGGER.error("failed to create user to ad");
+                throw new ADException("Failed to create user in AD", ADErrorCode.EU0003);
             }
         } catch (NamingException e) {
-            System.out.println("There is an error, cannot add new user");
-            e.printStackTrace();
-            return false;
+            LOGGER.error("There is an exception while creating user '{}'", e.getMessage(), e);
+            throw new ADException("User creation failed ", ADErrorCode.EU0003, e);
+
         }
 
     }
 
-    public boolean deleteUser(String userDN) {
+    public boolean deleteUser(String userDN) throws ADException {
         try {
             conn.getDirectoryContext().destroySubcontext(userDN);
-            System.out.println("user is successfully deleted");
+            LOGGER.info("user '{}' successfully deleted", userDN);
             return true;
         } catch (NamingException e) {
-            e.printStackTrace();
-            System.out.println("Error,cannot delete the user");
-            return false;
+            LOGGER.error("Error,cannot delete the user");
+            throw new ADException("", ADErrorCode.EU0005, e);
         }
     }
 
-    public boolean setPassword(String userDN, String password) {
+    public boolean setPassword(String userDN, String password) throws ADException {
+        LOGGER.info("Setting password for user '{}' ", userDN);
         byte pwdArray[] = EncodePassword(password);
         try {
             ModificationItem[] mods = new ModificationItem[1];
             mods[0] = new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
                     new BasicAttribute("UnicodePwd", pwdArray));
             conn.getDirectoryContext().modifyAttributes(userDN, mods);
-            System.out.println("user password updated!");
+            LOGGER.info("user '{}' password updated!", userDN);
             return true;
         } catch (NamingException | NullPointerException e) {
-            e.printStackTrace();
-            System.out.println("update password error: " + e);
-            return false;
+
+            LOGGER.error("Password update failed for user '{}', exception is '{}'", userDN,
+                    e.getMessage(), e);
+            throw new ADException("Password update is failed for user " + userDN,
+                    ADErrorCode.EU0004, e);
         }
     }
 
-    public boolean enableUser(String userDN) {
-        long status = getUserDisabledStatus(userDN);
-        status = status & ~ADS_UF_ACCOUNTDISABLE;
+    public boolean enableUser(String userDN) throws ADException {
 
-        return updateUserAttrValue(userDN, uac, "" + status);
+        long status = getUserUACStatus(userDN);
+        if (status == (status & ~ADUserFlags.DISABLED.getCode())) {
+            LOGGER.info("User account '{}' is already enaled ", userDN);
+            return false;
+        }
+        status = status & ~ADUserFlags.DISABLED.getCode();
+
+        try {
+            return updateUserAttrValue(userDN, uac, "" + status);
+        } catch (ADException e) {
+            LOGGER.error(
+                    "Exception while enabling user account '{}', exception is '{}', error code '{}'",
+                    userDN, e.getMessage(), e.getErrorCode(), e);
+            throw new ADException("Failed to enable user account for user '" + userDN + "'",
+                    ADErrorCode.EU0007, e);
+        }
     }
 
-    public boolean disableUser(String userDn) {
-        long status = getUserDisabledStatus(userDn);
-        status = status | ADS_UF_ACCOUNTDISABLE;
-        return updateUserAttrValue(userDn, uac, "" + status);
+    public boolean disableUser(String userDn) throws ADException {
+        long status = getUserUACStatus(userDn);
+        if (status == (status | ADUserFlags.DISABLED.getCode())) {
+            LOGGER.info("User account '{}' is already disbaled ", userDn);
+            return false;
+        }
+        status = status | ADUserFlags.DISABLED.getCode();
+        try {
+            return updateUserAttrValue(userDn, uac, "" + status);
+        } catch (ADException e) {
+            LOGGER.error(
+                    "Exception while disabling user account '{}', exception is '{}', error code '{}'",
+                    userDn, e.getMessage(), e.getErrorCode(), e);
+            throw new ADException("Failed to disable user account for user '" + userDn + "'",
+                    ADErrorCode.EU0008, e);
+        }
     }
 
-    private static String uac = "userAccountControl";
+    public boolean getUserDisabledStatus(String userDn) throws ADException {
+        long uacValue = getUserUACStatus(userDn);
+        return (uacValue | ADUserFlags.DISABLED.getCode()) == uacValue;
+    }
 
-    public long getUserDisabledStatus(String userDn) {
+    public long getUserUACStatus(String userDn) throws ADException {
         String uacValue = getUserAttrValue(userDn, "userAccountControl");
         try {
             return Long.parseLong(uacValue);
         } catch (NumberFormatException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new ADException("User Account Control value is not a long for " + userDn,
+                    ADErrorCode.EU0008, e);
         }
-        return 0;
+    }
+
+    public boolean unlockUser(String userDN) throws ADException {
+
+        long status = getUserUACStatus(userDN);
+        if (status == (status & ~ADUserFlags.LOCKED.getCode())) {
+            LOGGER.info("User account '{}' is already unlocked ", userDN);
+            return false;
+        }
+        status = status & ~ADUserFlags.LOCKED.getCode();
+
+        try {
+            return updateUserAttrValue(userDN, uac, "" + status);
+        } catch (ADException e) {
+            LOGGER.error(
+                    "Exception while unlocking user account '{}', exception is '{}', error code '{}'",
+                    userDN, e.getMessage(), e.getErrorCode(), e);
+            throw new ADException("Failed to unlock user account for user '" + userDN + "'",
+                    ADErrorCode.EU0010, e);
+        }
+    }
+
+    public boolean lockUser(String userDn) throws ADException {
+        long status = getUserUACStatus(userDn);
+        if (status == (status | ADUserFlags.LOCKED.getCode())) {
+            LOGGER.info("User account '{}' is already locked ", userDn);
+            return false;
+        }
+        status = status | ADUserFlags.LOCKED.getCode();
+        try {
+            return updateUserAttrValue(userDn, uac, "" + status);
+        } catch (ADException e) {
+            LOGGER.error(
+                    "Exception while locking user account '{}', exception is '{}', error code '{}'",
+                    userDn, e.getMessage(), e.getErrorCode(), e);
+            throw new ADException("Failed to lock user account for user '" + userDn + "'",
+                    ADErrorCode.EU0011, e);
+        }
     }
 
 
-    private boolean updateUserAttrValue(String userDn, String attrName, String attrValue) {
+    private boolean updateUserAttrValue(String userDn, String attrName, String attrValue)
+            throws ADException {
+        LOGGER.info("Updating user '{}' attribute '{}' value '{}'", userDn, attrName, attrValue);
         try {
             ModificationItem[] mods = new ModificationItem[1];
             mods[0] = new ModificationItem(DirContext.REPLACE_ATTRIBUTE,
                     new BasicAttribute(attrName, attrValue));
             conn.getDirectoryContext().modifyAttributes(userDn, mods);
+            LOGGER.info("User '{}' attribute '{}' is successfully updated", userDn, attrName);
             return true;
         } catch (NamingException e) {
-            e.printStackTrace();
-            System.err.println();
-            return false;
+            throw new ADException("User attribute update is failed for '" + userDn + "' attribute '"
+                    + attrName + "'", ADErrorCode.EU0006, e);
         }
     }
 
-    private String getUserAttrValue(String userDn, String attrName) {
+    private String getUserAttrValue(String userDn, String attrName) throws ADException {
 
         try {
             Attributes attrs =
@@ -234,8 +314,9 @@ public class ActiveDirectoryServiceImpl implements ActiveDirectoryService {
                 return attr.get().toString();
             }
         } catch (NamingException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new ADException(
+                    "Retrieval of user '" + userDn + "' attribute '" + attrName + "' is failed",
+                    ADErrorCode.EU0009, e);
         }
         return null;
     }

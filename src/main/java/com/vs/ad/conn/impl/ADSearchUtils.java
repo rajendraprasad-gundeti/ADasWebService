@@ -12,14 +12,19 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.SearchControls;
 import javax.naming.directory.SearchResult;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.vs.ad.common.exec.ADErrorCode;
+import com.vs.ad.common.exec.ADException;
 import com.vs.ad.conn.ADConnection;
 import com.vs.ad.vo.Group;
 import com.vs.ad.vo.User;
 
 public class ADSearchUtils {
 
+    private static Logger LOGGER = LoggerFactory.getLogger(ADSearchUtils.class);
     @Autowired
     private ADConnection conn;
 
@@ -35,8 +40,8 @@ public class ADSearchUtils {
 
     public static NamingEnumeration<SearchResult> searchDir(DirContext adContext, String base,
             String filter, String[] attributes) {
-        System.out.println("Searching Ad with base " + base + "'filter '" + filter
-                + "' attributes '" + attributes + "'");
+        LOGGER.debug("Searching with base " + base + "'filter '" + filter + "' attributes '"
+                + attributes + "'");
         NamingEnumeration<SearchResult> search_result;
         try {
             SearchControls searchCtrls = new SearchControls();
@@ -50,31 +55,21 @@ public class ADSearchUtils {
         }
     }
 
-    public Object SetUserProp(String dn, String propName, String propValue) {
-        return null;
-    }
 
-    public Object lockUser(String dn) {
-        return null;
-    }
-
-    public Object unlockUser(String dn) {
-        return null;
-    }
-
-    public List<User> searchUsers(String base) {
+    public List<User> searchUsers() throws ADException {
         List<User> users = new ArrayList<User>();
 
         NamingEnumeration<SearchResult> values = ADSearchUtils.searchDir(conn.getDirectoryContext(),
-                base, User.getFilter(), User.getUserAttributeNames());
+                conn.getSearchBase(), User.getFilter(), User.getUserAttributeNames());
         users = parseResultForUserList(values);
 
         return users;
     }
 
-    public User searchUser(String base, String dn) {
+    public User searchUser(String dn) throws ADException {
+        LOGGER.debug("Searching for user '{}', on base '{}'", dn, conn.getSearchBase());
         NamingEnumeration<SearchResult> values = ADSearchUtils.searchDir(conn.getDirectoryContext(),
-                base, User.getUserFilter(dn), User.getUserAttributeNames());
+                conn.getSearchBase(), User.getUserFilter(dn), User.getUserAttributeNames());
         if (values != null) {
             while (values.hasMoreElements()) {
                 SearchResult result;
@@ -87,7 +82,8 @@ public class ADSearchUtils {
                 }
             }
         }
-        return null;
+        LOGGER.info("User not found for dn '{}'", dn);
+        throw new ADException("User not found '" + dn + "'", ADErrorCode.EU0001);
     }
 
     private User parseResultForUser(SearchResult result) {
@@ -100,6 +96,7 @@ public class ADSearchUtils {
                     String attributeID = atr.getID();
                     for (Enumeration<?> vals = atr.getAll(); vals.hasMoreElements();) {
                         String attrValue = (String) vals.nextElement();
+                        LOGGER.debug("attribute '{}', value '{}'", attributeID, attrValue);
                         User.setProperty(user, attributeID, attrValue);
                     }
                 }
@@ -132,9 +129,11 @@ public class ADSearchUtils {
         return group;
     }
 
-    private List<User> parseResultForUserList(NamingEnumeration<SearchResult> values) {
-        List<User> users = new ArrayList<>();
+    private List<User> parseResultForUserList(NamingEnumeration<SearchResult> values)
+            throws ADException {
+
         if (values != null) {
+            List<User> users = new ArrayList<>();
             try {
                 while (values.hasMoreElements()) {
                     SearchResult result = (SearchResult) values.next();
@@ -145,8 +144,9 @@ public class ADSearchUtils {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
+            return users;
         }
-        return users;
+        throw new ADException("Searching for users returned empty results", ADErrorCode.EU0001);
     }
 
     private List<Group> parseResultForGroupList(NamingEnumeration<SearchResult> values) {
@@ -166,12 +166,12 @@ public class ADSearchUtils {
         return groups;
     }
 
-    public List<String> searchUserGroups(String base, String dn) {
+    public List<String> searchUserGroups(String dn) {
         List<String> groups = new ArrayList<>();
         String filter = "(member=" + dn + ")";
         filter = "(member:1.2.840.113556.1.4.1941:=" + dn + ")";
-        NamingEnumeration<SearchResult> values =
-                searchDir(conn.getDirectoryContext(), base, filter, new String[] {"member"});
+        NamingEnumeration<SearchResult> values = searchDir(conn.getDirectoryContext(),
+                conn.getSearchBase(), filter, new String[] {"member"});
         if (values != null) {
             try {
                 while (values.hasMoreElements()) {
@@ -202,19 +202,19 @@ public class ADSearchUtils {
         return groups;
     }
 
-    public List<Group> searchGroups(String base) {
+    public List<Group> searchGroups() {
         List<Group> groups = new ArrayList<Group>();
 
-        NamingEnumeration<SearchResult> values =
-                ADSearchUtils.searchDir(conn.getDirectoryContext(), base, Group.getFilter(), null);
+        NamingEnumeration<SearchResult> values = ADSearchUtils.searchDir(conn.getDirectoryContext(),
+                conn.getSearchBase(), Group.getFilter(), null);
         groups = parseResultForGroupList(values);
 
         return groups;
     }
 
-    public Group searchGroup(String base, String groupName) {
+    public Group searchGroup(String groupName) {
         NamingEnumeration<SearchResult> values = ADSearchUtils.searchDir(conn.getDirectoryContext(),
-                base, Group.getGroupFilter(groupName), null);
+                conn.getSearchBase(), Group.getGroupFilter(groupName), Group.getGroupAttributes());
 
         if (values != null) {
             while (values.hasMoreElements()) {
@@ -231,13 +231,13 @@ public class ADSearchUtils {
         return null;
     }
 
-    public List<String> searchGroupMembers(String base, String groupDN, boolean nested) {
+    public List<String> searchGroupMembers(String groupDN, boolean nested) {
         String filter = "(memberOf=" + groupDN + ")";
-        if(nested) {
-            filter = "(memberOf:1.2.840.113556.1.4.1941:="+ groupDN + ")";
+        if (nested) {
+            filter = "(memberOf:1.2.840.113556.1.4.1941:=" + groupDN + ")";
         }
-        NamingEnumeration<SearchResult> values =
-                ADSearchUtils.searchDir(conn.getDirectoryContext(), base, filter, new String[] {"distinguishedName"});
+        NamingEnumeration<SearchResult> values = ADSearchUtils.searchDir(conn.getDirectoryContext(),
+                conn.getSearchBase(), filter, new String[] {"distinguishedName"});
         List<String> users = new ArrayList<>();
         if (values != null) {
             try {
